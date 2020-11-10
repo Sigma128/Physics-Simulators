@@ -73,12 +73,11 @@ public:
 	float module() { return std::sqrt(pow(x, 2) + pow(y, 2)); }
 	
 	//Angle del vector
-	//segons la convenció trigonomètrica
+	//segons la convenció trigonomètrica.
+	//Retorna radians
+	//
+	//L'eix y de SDL2 apunta cap a baix
 	float angle();
-
-	//Angle del vector
-	//usat per renderitzar
-	float renderAngle();
 };
 
 //Codi per poder encadenar operacions

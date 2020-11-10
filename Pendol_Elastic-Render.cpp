@@ -2,10 +2,10 @@
 #include <tuple>
 #include <cmath>
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
+#include "SDL2/SDL.h"
+#include "SDL2/SDL_image.h"
 
-#include "CampCentral_Render.h"
+#include "Pendol_Elastic-Render.h"
 #include "CustomClasses/VectorClass.h"
 
 
@@ -13,30 +13,38 @@
 
 SDL_Window *window = nullptr;
 SDL_Renderer *renderer = nullptr;
-SDL_Texture *texArrow = nullptr;
-SDL_Texture *texCircleRed = nullptr;
-SDL_Texture *texCircleBlue = nullptr;
-SDL_Texture *texBackground = nullptr;
 
 //Array per organitzar les textures,
 //aquest es correspon amb un enum a Game.cpp
-SDL_Texture *textures[4];
+SDL_Texture *textures[5];
+
+SDL_Texture *texBackground = nullptr;
+SDL_Texture *texArrow = nullptr;
+SDL_Texture *texSpring = nullptr;
+SDL_Texture *texCircleRed = nullptr;
+SDL_Texture *texCircleBlue = nullptr;
+
+enum textureIDs {
+	TEX_BACKGROUND,
+	TEX_ARROW,
+	TEX_SPRING,
+	TEX_CIRCLE_RED,
+	TEX_CIRCLE_BLUE,
+};
 
 //Variables per transformar cordenades
 int screenWidth, screenHight;
 int windowWidth, windowHeight;
 float scaleX, scaleY;
 
-Vector getTextureSize(int texID) {
+Vector getTextureSize(int textureID) {
 	int texW;
 	int texH;
-	SDL_QueryTexture(textures[texID], NULL, NULL, &texW, &texH);
+	SDL_QueryTexture(textures[textureID], NULL, NULL, &texW, &texH);
 
 	return {texW, texH};
 }
 
-//Transformar sistema de coordenades de la finestra
-//al de la pantalla
 Vector windowToScreen(Vector windowCoordinates) {
 	Vector screenCoordinates;
 
@@ -46,8 +54,6 @@ Vector windowToScreen(Vector windowCoordinates) {
 	return screenCoordinates;
 }
 
-//Transformar sistema de coordenades de la pantalla
-//al de la finestra
 Vector screenToWindow(Vector screenCoordinates) {
 	Vector windowCoordinates;
 
@@ -110,16 +116,18 @@ void initRender() {
 		SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
 	);
 
-	texArrow	  = IMG_LoadTexture(renderer, "Images/triangle_vector.png");
+	texBackground = IMG_LoadTexture(renderer, "Images/background.png");
+	texArrow	  = IMG_LoadTexture(renderer, "Images/arrow.png");
+	texSpring	  = IMG_LoadTexture(renderer, "Images/spring.png");
 	texCircleRed  = IMG_LoadTexture(renderer, "Images/circle_red.png");
 	texCircleBlue = IMG_LoadTexture(renderer, "Images/circle_blue.png");
-	texBackground = IMG_LoadTexture(renderer, "Images/CartesianBackground.png");
 	
-	textures[0] = texArrow;
-	textures[1] = texCircleRed;
-	textures[2] = texCircleBlue;
-	textures[3] = texBackground;
-	//Actualitzar definició de textures[4] si s'afageixen noves textures
+	//Recordar actualitzar definició de array textures si s'afageixen de noves
+	textures[0] = texBackground;
+	textures[1] = texArrow;
+	textures[2] = texSpring;
+	textures[3] = texCircleRed;
+	textures[4] = texCircleBlue;
 }
 
 
@@ -127,7 +135,7 @@ void initRender() {
 void renderBackground() {
 	//Destination. On es vol render la imatge
 	SDL_Rect dstBackground;
-	SDL_QueryTexture(textures[3], NULL, NULL, &dstBackground.w, &dstBackground.h);
+	SDL_QueryTexture(textures[TEX_BACKGROUND], NULL, NULL, &dstBackground.w, &dstBackground.h);
 	dstBackground.x = 0;
 	dstBackground.y = 0;
 
@@ -142,7 +150,7 @@ void renderBackground() {
 	//dstBackground.x = (windowWidth-dstBackground.w)/2;
 	//dstBackground.y = (windowHeight-dstBackground.h)/2
 
-	SDL_RenderCopy(renderer, textures[3], NULL, &dstBackground);
+	SDL_RenderCopy(renderer, textures[TEX_BACKGROUND], NULL, &dstBackground);
 
 
 	//Color a gris
@@ -152,8 +160,8 @@ void renderBackground() {
 	int centerX = windowWidth/2;
 	int centerY = windowHeight/2;
 
-	int pixelsPerMeterX = scaleX*100; //Hauria de ser 100, però floats
-	int pixelsPerMeterY = scaleY*100; //Hauria de ser 100, però floats
+	int pixelsPerMeterX = scaleX*100;
+	int pixelsPerMeterY = scaleY*100;
 
 	//Eixos
 	SDL_RenderDrawLine(renderer, centerX, 0, centerX, windowHeight);
@@ -171,14 +179,11 @@ void renderBackground() {
 	}
 }
 
-//Netejar la pantalla, deixant un fons blanc
+//Netejar la pantalla, deixant de fons les coordenades cartesianes
 void startRender() {
 	SDL_RenderClear(renderer);
 
 	SDL_GetWindowSize(window, &windowWidth, &windowHeight);
-
-
-	//Quan la pantalla és justament 16:9 no s'ajusta bé per la precisió
 
 	float ratio = screenWidth*1.0f/screenHight;
 
@@ -204,21 +209,10 @@ void startRender() {
 //Renderitzar la textura especificada
 //en la posició especificada
 //centrada
-void renderParticle(Vector position, float charge) {
+void renderTexture(int textureID, Vector position) {
 	//Destination. On es vol render la imatge
 	SDL_Rect dst;
-
-	if (charge >= 0) {
-		//TEX_RED_RING
-		SDL_QueryTexture(textures[1], NULL, NULL, &dst.w, &dst.h);
-	} else {
-		//TEX_BLUE_RING
-		SDL_QueryTexture(textures[2], NULL, NULL, &dst.w, &dst.h);
-	}
-
-	dst.w *= sqrt(abs(charge))/4;
-	dst.h *= sqrt(abs(charge))/4;
-
+	SDL_QueryTexture(textures[textureID], NULL, NULL, &dst.w, &dst.h);
 	dst.x = position.x - dst.w/2;
 	dst.y = position.y - dst.h/2;
 
@@ -230,49 +224,24 @@ void renderParticle(Vector position, float charge) {
 	dst.x = dst.x*scaleX+(windowWidth-screenWidth*scaleX)/2;
 	dst.y = dst.y*scaleY+(windowHeight-screenHight*scaleY)/2;
 
-	if (charge >= 0) {
-		//TEX_RED_RING
-		SDL_RenderCopy(renderer, textures[1], NULL, &dst);
-	} else {
-		//TEX_BLUE_RING
-		SDL_RenderCopy(renderer, textures[2], NULL, &dst);
-	}
+	SDL_RenderCopy(renderer, textures[textureID], NULL, &dst);
 }
 
 //Renderitzar un vector com fletxa.
 //Punt d'inici en coordenades pixel
 //Escala com fracció de la imatge (resolució/100px)
 //Opacity [0,255]
-void renderVector(Vector startPoint, Vector vector, float vectorScale, float opacity) {
+void renderVector(int textureID, Vector startPoint, Vector vector) {
 	SDL_Rect dst;
-	SDL_QueryTexture(textures[0], NULL, NULL, &dst.w, &dst.h);
-	dst.w *= scaleX*vectorScale;
-	dst.h *= scaleY*vectorScale;
+	SDL_QueryTexture(textures[textureID], NULL, NULL, &dst.w, &dst.h);
+	dst.w *= scaleX;
+	dst.h *= scaleY*vector.module()/2;
 	SDL_Point topCenter = {dst.w/2, 0};
 	dst.x = startPoint.x - dst.w/2;
 	dst.y = startPoint.y;
-	SDL_SetTextureAlphaMod(textures[0], opacity);
-	SDL_RenderCopyEx(renderer, textures[0], NULL, &dst, -vector.renderAngle(), &topCenter, SDL_FLIP_NONE);
-}
-
-//Renderitzar un cuadrat del potencial electric
-//Gradient de blau(0) a vermell(255)
-//Donar punt d'inici i color
-//Coordenades pixel
-//Opacity [0,255]
-void renderPotential(Vector startPoint, int pixelsPerMeter, float potentialOpacity) {
-	SDL_Rect destination;
-	destination.w = pixelsPerMeter*scaleX;
-	destination.h = pixelsPerMeter*scaleY;
-	destination.x = startPoint.x - destination.w/2;
-	destination.y = startPoint.y - destination.h/2;
-
-	int red		= potentialOpacity <= 127.5 ?						 0 : 2*potentialOpacity-255;
-	int green	= potentialOpacity <= 127.5 ?		2*potentialOpacity : 510-2*potentialOpacity;
-	int blue	= potentialOpacity <= 127.5 ?	255-2*potentialOpacity : 0;
-
-	SDL_SetRenderDrawColor(renderer, red, green, blue, 255);
-	SDL_RenderFillRect(renderer, &destination);
+	dst.x = dst.x*scaleX+(windowWidth-screenWidth*scaleX)/2;
+	dst.y = dst.y*scaleY+(windowHeight-screenHight*scaleY)/2;
+	SDL_RenderCopyEx(renderer, textures[textureID], NULL, &dst, vector.angle()*180/M_PI-90, &topCenter, SDL_FLIP_NONE);
 }
 
 //Posar el fotograma a la pantalla
@@ -284,11 +253,12 @@ void endRender() {
 }
 
 //Alliberar la memòria de les variables
-void exitRender() {	
+void exitRender() {
+	SDL_DestroyTexture(texBackground);
 	SDL_DestroyTexture(texArrow);
+	SDL_DestroyTexture(texSpring);
 	SDL_DestroyTexture(texCircleRed);
 	SDL_DestroyTexture(texCircleBlue);
-	SDL_DestroyTexture(texBackground);
 
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
