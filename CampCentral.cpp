@@ -7,7 +7,7 @@
 #include <windows.h>
 //#include <chrono>
 
-#include <SDL2/SDL.h>
+#include "SDL2/SDL.h"
 
 #include "CustomClasses/VectorClass.h"
 #include "CampCentral_Render.h"
@@ -741,7 +741,7 @@ int main(int argc, char *argv[]) {
 
 						electricPotential[i].push_back(totalPotential);
 
-						if ( abs(totalPotential) > potentialAbsoluteValue) {
+						if (abs(totalPotential) > potentialAbsoluteValue) {
 							potentialAbsoluteValue = abs(totalPotential);
 						}
 					}
@@ -765,15 +765,15 @@ int main(int argc, char *argv[]) {
 					float potentialOpacity;
 
 					float ratioToHighestPotential = abs(electricPotential[i][j]) / potentialAbsoluteValue;
-
+					
 					//sqrt per allanar una mica la escala exponencial del potencial
 					if (electricPotential[i][j] < 0) {
 						potentialOpacity = 127*
-							(1 - ( sqrtf( ratioToHighestPotential ) ) );
+							(1 - sqrtf( sqrtf( ratioToHighestPotential ) ) );
 					}
 					else {
 						potentialOpacity = 127*
-							(1 + ( sqrtf( ratioToHighestPotential ) ) );
+							(1 + sqrtf( sqrtf( ratioToHighestPotential ) ) );
 					}
 
 					//failsafe
